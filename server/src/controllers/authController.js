@@ -1,6 +1,8 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Business = require('../models/Business');
+const mongoose = require('mongoose');
 
 // Check if a user or business already exists in MongoDB
 const checkUserExists = async (req, res) => {
@@ -16,13 +18,13 @@ const checkUserExists = async (req, res) => {
       return res.status(400).json({ message: 'User with this email already exists' });
     }
 
-    const existingByBusinessName = await User.findOne({ businessName });
+    const existingByBusinessName = await Business.findOne({ name: businessName });
     if (existingByBusinessName) {
       return res.status(400).json({ message: 'Business name already registered' });
     }
 
     if (businessEmail) {
-      const existingByBusinessEmail = await User.findOne({ businessEmail });
+      const existingByBusinessEmail = await Business.findOne({ email: businessEmail });
       if (existingByBusinessEmail) {
         return res.status(400).json({ message: 'Business email already registered' });
       }
@@ -37,6 +39,7 @@ const checkUserExists = async (req, res) => {
 
 // Register a new user in MongoDB and return a JWT
 const registerUser = async (req, res) => {
+  const session = await mongoose.startSession();
   try {
     const {
       fullName,
@@ -85,30 +88,80 @@ const registerUser = async (req, res) => {
       return res.status(400).json({ message: 'User with this email already exists' });
     }
 
+    const existingBusinessByName = await Business.findOne({ name: businessName });
+    if (existingBusinessByName) {
+      return res.status(400).json({ message: 'Business name already registered' });
+    }
+
+    const existingBusinessByEmail = await Business.findOne({ email: businessEmail });
+    if (existingBusinessByEmail) {
+      return res.status(400).json({ message: 'Business email already registered' });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await User.create({
-      fullName,
-      email,
-      password: hashedPassword,
-      businessName,
-      gstNumber,
-      businessType,
-      industry,
-      registrationDate,
-      addressLine1,
-      addressLine2,
-      city,
-      pincode,
-      state,
-      country,
-      businessEmail,
-      businessPhone,
-      panNumber,
-      agreedToTerms,
+    let createdUser;
+    let createdBusiness;
+
+    await session.withTransaction(async () => {
+      createdBusiness = await Business.create(
+        [
+          {
+            name: businessName,
+            email: businessEmail,
+            phone: businessPhone,
+            gstNumber,
+            businessType,
+            industry,
+            registrationDate,
+            panNumber,
+            address: {
+              addressLine1,
+              addressLine2,
+              city,
+              state,
+              pincode,
+              country,
+            },
+          },
+        ],
+        { session }
+      );
+
+      const businessDoc = createdBusiness[0];
+
+      createdUser = await User.create(
+        [
+          {
+            fullName,
+            email,
+            password: hashedPassword,
+            businessId: businessDoc._id,
+            // Backward compatible fields (optional)
+            businessName,
+            gstNumber,
+            businessType,
+            industry,
+            registrationDate,
+            addressLine1,
+            addressLine2,
+            city,
+            pincode,
+            state,
+            country,
+            businessEmail,
+            businessPhone,
+            panNumber,
+            agreedToTerms,
+          },
+        ],
+        { session }
+      );
     });
 
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+    const user = Array.isArray(createdUser) ? createdUser[0] : createdUser;
+
+    const token = jwt.sign({ userId: user._id, businessId: user.businessId }, process.env.JWT_SECRET, {
       expiresIn: '7d',
     });
 
@@ -120,11 +173,14 @@ const registerUser = async (req, res) => {
         fullName: user.fullName,
         email: user.email,
         businessName: user.businessName,
+        businessId: user.businessId,
       },
     });
   } catch (error) {
     console.error('Registration error:', error);
     res.status(500).json({ message: 'Error registering user' });
+  } finally {
+    session.endSession();
   }
 };
 
@@ -147,7 +203,7 @@ const loginUser = async (req, res) => {
       return res.status(400).json({ message: 'Invalid email or password' });
     }
 
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+    const token = jwt.sign({ userId: user._id, businessId: user.businessId }, process.env.JWT_SECRET, {
       expiresIn: '7d',
     });
 
@@ -159,6 +215,7 @@ const loginUser = async (req, res) => {
         fullName: user.fullName,
         email: user.email,
         businessName: user.businessName,
+        businessId: user.businessId,
       },
     });
   } catch (error) {

@@ -3,3 +3,13 @@
 body {
   @apply bg-white text-gray-900;
 }
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: #ffffff !important;
+  }
+}

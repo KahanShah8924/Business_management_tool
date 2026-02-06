@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 
 const verifyToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -12,7 +13,20 @@ const verifyToken = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
+    // decoded: { userId, businessId? }
+    req.user = decoded || {};
+
+    // Backward compatibility: older tokens may not contain businessId.
+    if (req.user?.userId && !req.user?.businessId) {
+      const user = await User.findById(req.user.userId).select('businessId');
+      if (user?.businessId) {
+        req.user.businessId = user.businessId.toString();
+      }
+    }
+
+    if (!req.user?.businessId) {
+      return res.status(401).json({ message: 'Business context missing for this token' });
+    }
     next();
   } catch (error) {
     console.error('Error verifying token:', error);

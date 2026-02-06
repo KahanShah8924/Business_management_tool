@@ -6,28 +6,39 @@ const userSchema = new mongoose.Schema(
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
 
-    businessName: { type: String, required: true },
-    gstNumber: { type: String, required: true },
-    businessType: { type: String, required: true },
-    industry: { type: String, required: true },
-    registrationDate: { type: String, required: true },
+    businessId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Business',
+      required: true,
+      index: true,
+    },
 
-    addressLine1: { type: String, required: true },
+    // Kept for backward compatibility with earlier signup payloads.
+    // Source of truth for business metadata is `Business` collection.
+    businessName: { type: String },
+    gstNumber: { type: String },
+    businessType: { type: String },
+    industry: { type: String },
+    registrationDate: { type: String },
+
+    addressLine1: { type: String },
     addressLine2: { type: String },
-    city: { type: String, required: true },
-    pincode: { type: String, required: true },
-    state: { type: String, required: true },
-    country: { type: String, required: true },
+    city: { type: String },
+    pincode: { type: String },
+    state: { type: String },
+    country: { type: String },
 
-    businessEmail: { type: String, required: true },
-    businessPhone: { type: String, required: true },
-    panNumber: { type: String, required: true },
+    businessEmail: { type: String },
+    businessPhone: { type: String },
+    panNumber: { type: String },
     agreedToTerms: { type: Boolean, default: false },
   },
   {
     timestamps: true,
   }
 );
+
+userSchema.index({ businessId: 1 }, { unique: true });
 
 const User = mongoose.model('User', userSchema);
 
