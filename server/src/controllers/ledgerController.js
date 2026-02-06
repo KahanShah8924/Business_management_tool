@@ -1,4 +1,4 @@
-const { createManualLedgerEntry, listLedgerEntries, getPartyBalance } = require('../services/ledgerService');
+const { createManualLedgerEntry, listLedgerEntries, getPartyBalance, getOpeningBalance } = require('../services/ledgerService');
 
 async function listLedgerHandler(req, res) {
   try {
@@ -31,9 +31,22 @@ async function getPartyBalanceHandler(req, res) {
   }
 }
 
+async function getOpeningBalanceHandler(req, res) {
+  try {
+    const businessId = req.user.businessId;
+    // Assuming enterpriseId in URL is the partyName
+    const partyName = req.params.enterpriseId;
+    const result = await getOpeningBalance({ businessId, partyName });
+    res.status(200).json(result);
+  } catch (e) {
+    res.status(e.statusCode || 500).json({ message: e.message || 'Failed to fetch opening balance' });
+  }
+}
+
 module.exports = {
   listLedgerHandler,
   createManualLedgerHandler,
   getPartyBalanceHandler,
+  getOpeningBalanceHandler,
 };
 

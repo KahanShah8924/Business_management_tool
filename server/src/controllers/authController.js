@@ -224,4 +224,19 @@ const loginUser = async (req, res) => {
   }
 };
 
-module.exports = { checkUserExists, registerUser, loginUser };
+async function logoutUser(req, res) {
+  try {
+    // Clear-Site-Data header tells the browser to clear specific types of data
+    res.set('Clear-Site-Data', '"cookies", "storage", "cache"');
+    res.status(200).json({ message: 'Logged out successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Logout failed' });
+  }
+}
+
+module.exports = {
+  checkUserExists,
+  registerUser,
+  loginUser,
+  logoutUser,
+};

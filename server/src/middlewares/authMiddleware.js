@@ -27,6 +27,11 @@ const verifyToken = async (req, res, next) => {
     if (!req.user?.businessId) {
       return res.status(401).json({ message: 'Business context missing for this token' });
     }
+    // Add security headers to prevent caching of protected routes
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+
     next();
   } catch (error) {
     console.error('Error verifying token:', error);

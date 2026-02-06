@@ -123,6 +123,44 @@ async function getPartyBalance({ businessId, partyName }) {
   return balance > 0 ? balance : 0;
 }
 
+async function getOpeningBalance({ businessId, partyName }) {
+  const p = (partyName || '').trim();
+  if (!p) return { type: 'CREDIT', amount: 0 };
+
+  const agg = await Ledger.aggregate([
+    {
+      $match: {
+        businessId,
+        partyName: p,
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        credits: {
+          $sum: {
+            $cond: [{ $eq: ['$type', 'CREDIT'] }, '$amount', 0],
+          },
+        },
+        debits: {
+          $sum: {
+            $cond: [{ $eq: ['$type', 'DEBIT'] }, '$amount', 0],
+          },
+        },
+      },
+    },
+  ]);
+
+  const credits = agg?.[0]?.credits || 0;
+  const debits = agg?.[0]?.debits || 0;
+  const net = credits - debits;
+
+  if (net >= 0) {
+    return { type: 'CREDIT', amount: net };
+  }
+  return { type: 'DEBIT', amount: Math.abs(net) };
+}
+
 async function listLedgerEntries({ businessId, query }) {
   const startDate = query?.startDate ? new Date(query.startDate) : null;
   const endDate = query?.endDate ? new Date(query.endDate) : null;
@@ -172,5 +210,6 @@ module.exports = {
   createManualLedgerEntry,
   listLedgerEntries,
   getPartyBalance,
+  getOpeningBalance,
 };
 

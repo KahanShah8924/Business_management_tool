@@ -11,6 +11,20 @@ import InvoiceView from './pages/invoices/InvoiceView';
 import LedgerPage from './pages/ledger/LedgerPage';
 
 function App() {
+  // Global bfcache detection to prevent back-button bypass
+  React.useEffect(() => {
+    const handlePageShow = (event) => {
+      if (event.persisted) {
+        // Page was loaded from bfcache (back/forward cache)
+        // Force a reload to re-run auth checks
+        window.location.reload();
+      }
+    };
+
+    window.addEventListener('pageshow', handlePageShow);
+    return () => window.removeEventListener('pageshow', handlePageShow);
+  }, []);
+
   return (
     <Router>
       <Routes>
